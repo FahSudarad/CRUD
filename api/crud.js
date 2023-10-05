@@ -1,5 +1,5 @@
 import axios from "axios";
-const API_BASE_URL = "https://65072edc3a38daf4803f369f.mockapi.io/CRUD";
+const API_BASE_URL = "https://PROJECT_TOKEN.mockapi.io/xx";
 
 export async function fetchAllUsers() {
   try {
