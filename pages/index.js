@@ -1,19 +1,10 @@
 import Head from "next/head";
 import Header from "@/components/Header";
-import { useState, useEffect } from "react";
 
 import Container from "@mui/material/Container";
 import UserProfileList from "../components/UserProfileList";
 
 export default function Home() {
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    setTimeout(() => {
-      setIsLoading(false); // แสดงข้อมูลหลังจากโหลดเสร็จ
-    }, 1); // เวลาหยุดโหลด
-  }, []);
-
   return (
     <>
       <Head>
@@ -33,8 +24,7 @@ export default function Home() {
       </nav>
       <section>
         <Container fixed>
-          {/* แสดงเฉพาะเมื่อ isLoading เป็น false (หลังจากโหลดเสร็จ) */}
-          {!isLoading && <UserProfileList />}
+          <UserProfileList />
         </Container>
       </section>
     </>
