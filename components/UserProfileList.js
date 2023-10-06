@@ -1,6 +1,4 @@
-import React from "react";
-import Image from "next/image";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { styled } from "@mui/material/styles";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
@@ -9,7 +7,6 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
-import imgPreview from "../public/images/user-preview.png";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import ModeEditOutlineIcon from "@mui/icons-material/ModeEditOutline";
@@ -27,10 +24,11 @@ import Pagination from "@mui/material/Pagination";
 function UserProfileList() {
   const [users, setUsers] = useState([]);
   const [deleteUserId, setDeleteUserId] = useState(null);
+  const [searchResults, setSearchResults] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1); 
+  const [totalPages, setTotalPages] = useState(1);
   const limit = 5;
   const router = useRouter();
 
@@ -43,38 +41,46 @@ function UserProfileList() {
   };
 
   useEffect(() => {
-    async function getUsers() {
+    async function fetchData() {
       try {
-        // ดึงข้อมูลผู้ใช้ทั้งหมด
-        const allUserData = await fetchAllUsers();
-
-        // คำนวณจำนวนหน้าจากข้อมูลทั้งหมด
-        const calculatedTotalPages = Math.ceil(allUserData.length / limit);
-        setTotalPages(calculatedTotalPages);
-
-        // ดึงข้อมูลผู้ใช้สำหรับหน้าปัจจุบัน
-        const userData = await fetchUsersLimit({ page, limit });
-        setUsers(userData);
-        setIsLoading(false);
+        if (!searchTerm) {
+          // ถ้าไม่มีการค้นหา
+          const allUserData = await fetchAllUsers();
+          const calculatedTotalPages = Math.ceil(allUserData.length / limit);
+          setTotalPages(calculatedTotalPages);
+          const userData = await fetchUsersLimit({ page, limit });
+          setUsers(userData);
+        } else {
+          // ถ้ามีการค้นหา
+          const allUserData = await fetchAllUsers();
+          const filteredUserData = allUserData.filter((user) => {
+            const fullName = `${user.firstName} ${user.lastName}`;
+            return fullName.toLowerCase().includes(searchTerm.toLowerCase());
+          });
+          const calculatedTotalPages = Math.ceil(
+            filteredUserData.length / limit
+          );
+          setTotalPages(calculatedTotalPages);
+          const startIndex = (page - 1) * limit;
+          const endIndex = startIndex + limit;
+          const slicedData = filteredUserData.slice(startIndex, endIndex);
+          setSearchResults(slicedData);
+        }
       } catch (error) {
         alert("ไม่สามารถดึงข้อมูลผู้ใช้ได้");
-        setIsLoading(false);
+      } finally {
+        setIsLoading(false); // ตั้งค่า isLoading เมื่อโหลดเสร็จ
       }
     }
 
-    getUsers();
-  }, [page]);
+    fetchData();
+  }, [page, searchTerm]);
 
   const handleDeleteConfirm = async () => {
     try {
-      // เรียกใช้งานฟังก์ชันลบผู้ใช้จาก API
       await deleteUser(deleteUserId);
-
-      // หลังจากการลบสำเร็จแล้วให้อัปเดตรายการผู้ใช้
       const updatedUsers = users.filter((user) => user.id !== deleteUserId);
       setUsers(updatedUsers);
-
-      // ปิด ConfirmDeleteDialog
       setDeleteUserId(null);
     } catch (error) {
       console.error("เกิดข้อผิดพลาดในการลบผู้ใช้", error);
@@ -99,7 +105,6 @@ function UserProfileList() {
     "&:nth-of-type(odd)": {
       backgroundColor: theme.palette.action.hover,
     },
-    // hide last border
     "&:last-child td, &:last-child th": {
       border: 0,
     },
@@ -111,9 +116,10 @@ function UserProfileList() {
       (url.startsWith("http://") || url.startsWith("https://"))
     );
   }
+
   const formatBirthday = (birthday) => {
     if (!birthday) {
-      return ""; // ถ้า birthday เป็นค่าว่าง ให้แสดงค่าว่าง
+      return "";
     }
 
     const options = { day: "2-digit", month: "short", year: "numeric" };
@@ -122,25 +128,20 @@ function UserProfileList() {
 
   const handleSearch = (term) => {
     setSearchTerm(term);
+    setPage(1); // เมื่อค้นหาใหม่ให้กลับไปหน้าแรก
   };
 
-  const filteredUsers = isLoading
-    ? [] // ถ้ายังโหลดไม่เสร็จ ให้เป็น array ว่างก่อน
-    : users.filter((user) => {
-        const fullName = `${user.firstName} ${user.lastName}`;
-        return fullName.toLowerCase().includes(searchTerm.toLowerCase());
-      });
+  const displayedUsers = searchTerm ? searchResults : users;
 
   return (
     <>
-      {isLoading ? ( // ถ้า isLoading เป็น true แสดง Loading
+      {isLoading ? (
         <Backdrop open={isLoading}>
           <CircularProgress color="inherit" />
         </Backdrop>
       ) : (
-        // ถ้า isLoading เป็น false แสดงข้อมูลผู้ใช้
         <>
-          <h1 x={{ text: 1 }}>User Profile</h1>
+          <h1>User Profile</h1>
           <Stack
             direction="row"
             justifyContent="space-between"
@@ -174,7 +175,7 @@ function UserProfileList() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredUsers.length === 0 ? (
+                  {displayedUsers.length === 0 ? (
                     <TableRow>
                       <StyledTableCell
                         colSpan={6}
@@ -185,7 +186,7 @@ function UserProfileList() {
                       </StyledTableCell>
                     </TableRow>
                   ) : (
-                    filteredUsers.map((row, index) => (
+                    displayedUsers.map((row, index) => (
                       <StyledTableRow key={index}>
                         <StyledTableCell
                           component="th"
